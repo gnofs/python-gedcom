@@ -95,30 +95,26 @@ class IndividualElement(Element):
         # Alternatively as soon as we have both the gedcom.tags.GEDCOM_TAG_GIVEN_NAME and _SURNAME return those.
         found_given_name = False
         found_surname_name = False
+        found_married_name = False
 
         for child in self.get_child_elements():
             if child.get_tag() == gedcom.tags.GEDCOM_TAG_NAME:
-                # Some GEDCOM files don't use child tags but instead
-                # place the name in the value of the NAME tag.
-                if child.get_value() != "":
-                    name = child.get_value().split('/')
-
-                    if len(name) > 0:
-                        given_name = name[0].strip()
-                        if len(name) > 1:
-                            surname = name[1].strip()
-
-                    return given_name, surname
-
                 for childOfChild in child.get_child_elements():
 
                     if childOfChild.get_tag() == gedcom.tags.GEDCOM_TAG_GIVEN_NAME:
                         given_name = childOfChild.get_value()
                         found_given_name = True
 
+                    if childOfChild.get_tag() == gedcom.tags.GEDCOM_TAG_MARRIED_NAME:
+                        married_name = childOfChild.get_value()
+                        found_married_name = True
+
                     if childOfChild.get_tag() == gedcom.tags.GEDCOM_TAG_SURNAME:
                         surname = childOfChild.get_value()
                         found_surname_name = True
+
+                if found_given_name and found_married_name:
+                    return given_name, married_name
 
                 if found_given_name and found_surname_name:
                     return given_name, surname
@@ -414,6 +410,15 @@ class IndividualElement(Element):
         for criterion in criteria.split(':'):
             key, value = criterion.split('=')
 
+            if key not in [
+                    "surname",
+                    "name",
+                    "birth",
+                    "birth_range",
+                    "death",
+                    "death_range",
+            ]:
+                raise ValueError("Invalid criteria: {} = {}".format(key, value))
             if key == "surname" and not self.surname_match(value):
                 match = False
             elif key == "name" and not self.given_name_match(value):

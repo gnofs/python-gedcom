@@ -141,6 +141,11 @@ GEDCOM_TAG_NAME = "NAME"
 A word or combination of words used to help identify an individual, title, or other item.
 More than one NAME line should be used for people who were known by multiple names."""
 
+GEDCOM_TAG_MARRIED_NAME = "_MARNM"
+"""Value: `_MARNM`.
+
+An indvidual's surname obtained in marriage."""
+
 GEDCOM_TAG_OBJECT = "OBJE"
 """Value: `OBJE`
 
