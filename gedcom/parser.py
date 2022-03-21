@@ -153,8 +153,56 @@ class Parser(object):
         line_number = 1
         last_element = self.get_root_element()
 
+        leftover_bytes = None
         for line in gedcom_stream:
-            last_element = self.__parse_line(line_number, line.decode('utf-8-sig'), last_element, strict)
+            if leftover_bytes is not None:
+                # Reinsert any leftover byte from the previous line, into the new line.
+                # We'll assume the next line starts with a CONT directive or a
+                # tab. If not, we can simply ignore it: It is either a
+                # trailing space, or our assumption that this is a simple case
+                # of a bad line break is wrong, in which case we have a
+                # different kind of UnicodeDecodeError.
+                CONC = b" CONC "
+                if CONC in line:
+                    ind = line.index(CONC) + len(CONC)
+                    line = line[:ind] + leftover_bytes + line[ind:]
+                elif line.startswith(b"\t"):
+                    ind = len(b"\t") # obviously 1, but anyway
+                    line = line[:ind] + leftover_bytes + line[ind:]
+                leftover_bytes = None
+
+            # Handle trailing spaces
+            if line.endswith(b" \r\n"):
+                if not b" _UPD " in line:
+                    # Simply drop trailing spaces in _UPD fields, assumed to be insignificant,
+                    # but keep leftover trailing spaces in all other fields
+                    leftover_bytes = bytes(line[-3:-2])
+                # No matter what, remove them from the current line
+                line = line[:-3] + b"\r\n"
+                decoded = line.decode('utf-8-sig')
+            else:
+                try:
+                    decoded = line.decode('utf-8-sig')
+                except UnicodeDecodeError:
+                    leftover_bytes = b""
+                    # On a decode error, assume a unicode character has been
+                    # split so that the line ends with the first byte(s) of a
+                    # multibyte UTF-8 character (before the CR/LF). Remove the
+                    # last byte (before the CR/LF), which can then later be added
+                    # to the next line.  UTF-8 characters can be up to 4 bytes
+                    # long, so repeat this up to 3 times if necessary.
+                    for _ in range(3):
+                        try:
+                            leftover_bytes = bytes(line[-3:-2]) + leftover_bytes
+                            line = line[:-3] + b"\r\n"
+                            decoded = line.decode('utf-8-sig')
+                            break
+                        except UnicodeDecodeError as err:
+                            continue
+                    else:
+                        raise ValueError("Could not fix unicode errors in the following line: " + str(line))
+
+            last_element = self.__parse_line(line_number, decoded, last_element, strict)
             line_number += 1
 
     # Private methods
