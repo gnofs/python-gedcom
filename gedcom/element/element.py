@@ -268,7 +268,7 @@ class Element(object):
 
         result = str(self.get_level())
 
-        if self.get_pointer() != "":
+        if self.get_pointer():
             result += ' ' + self.get_pointer()
 
         result += ' ' + self.get_tag()
